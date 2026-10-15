@@ -1,4 +1,12 @@
 export class ChatApi {
+  static async getJSON(url) {
+    const res = await fetch(url);
+    let body = {};
+    try { body = await res.json(); } catch (_) { /* respuesta sin JSON */ }
+    if (!res.ok) throw new Error(body.error || "Error " + res.status);
+    return body;
+  }
+
   static async postJSON(url, data) {
     const res = await fetch(url, {
       method: "POST",
@@ -30,8 +38,22 @@ export class ChatApi {
   }
 
   static async getInfo() {
-    const res = await fetch("/api/info");
-    if (!res.ok) throw new Error("Error " + res.status);
-    return res.json();
+    return this.getJSON("/api/info");
+  }
+
+  static async getConversations() {
+    return this.getJSON("/api/conversaciones");
+  }
+
+  static async getConversation(id) {
+    return this.getJSON("/api/conversaciones/" + encodeURIComponent(id));
+  }
+
+  static async createConversation() {
+    return this.postJSON("/api/conversaciones");
+  }
+
+  static async sendMessage(conversationId, message) {
+    return this.postJSON("/api/chat", { conversationId, message });
   }
 }

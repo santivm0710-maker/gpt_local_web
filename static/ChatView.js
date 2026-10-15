@@ -7,6 +7,8 @@ export class ChatView {
     this.sendBtn = document.getElementById("send");
     this.imageBtn = document.getElementById("image");
     this.imageModel = document.getElementById("image-model");
+    this.conversationSelect = document.getElementById("conversation-select");
+    this.newConversationBtn = document.getElementById("new-conversation");
     this.errorBox = document.getElementById("error");
     this.modelLabel = document.getElementById("model");
     this.imageUrls = new Set();
@@ -55,7 +57,20 @@ export class ChatView {
     this.imageBtn.disabled = busy;
     this.imageModel.disabled = busy;
     this.input.disabled = busy;
+    this.conversationSelect.disabled = busy;
+    this.newConversationBtn.disabled = busy;
     if (!busy) this.input.focus();
+  }
+
+  setConversations(conversations, activeId) {
+    this.conversationSelect.replaceChildren();
+    for (const conversation of conversations) {
+      const option = document.createElement("option");
+      option.value = conversation.id;
+      option.textContent = conversation.title;
+      this.conversationSelect.appendChild(option);
+    }
+    if (activeId !== undefined) this.conversationSelect.value = String(activeId);
   }
 
   clear() {

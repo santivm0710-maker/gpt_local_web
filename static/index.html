@@ -13,6 +13,12 @@
       <span class="model" id="model" title="Modelo en uso">...</span>
     </header>
 
+    <div class="conversation-bar">
+      <label for="conversation-select">Conversación</label>
+      <select id="conversation-select" aria-label="Conversaciones guardadas"></select>
+      <button id="new-conversation" type="button" class="btn">Nueva conversación</button>
+    </div>
+
     <section id="chat" class="chat" aria-live="polite" aria-label="Conversación"></section>
 
     <div id="error" class="error" role="alert" hidden></div>
@@ -25,7 +31,6 @@
         <select id="image-model" aria-label="Modelo de imagen"></select>
       </label>
       <button id="image" type="button" class="btn">Crear imagen</button>
-      <button id="clear" type="button" class="btn">Limpiar</button>
       <button id="exit" type="button" class="btn danger">Salir</button>
     </form>
   </main>

@@ -1,9 +1,11 @@
 import threading
 import webbrowser
-from pathlib import Path
 
 from .app_config import AppConfig
 from .chat_service import OllamaChatService
+from .conversation_repository import ConversationRepository
+from .conversation_service import ConversationService
+from .database import SQLiteDatabase
 from .http_server import ChatHTTPServer
 from .image_service import CloudflareImageService
 
@@ -12,6 +14,13 @@ class ChatApplication:
     def __init__(self, config: AppConfig):
         self.config = config
         self.chat_service = OllamaChatService(config.chat_model)
+        self.database = SQLiteDatabase(config.database_path)
+        self.database.initialize()
+        self.conversations = ConversationService(
+            ConversationRepository(self.database),
+            self.chat_service,
+            config.chat_history_limit,
+        )
         self.image_service = CloudflareImageService(config)
         self.http_server = ChatHTTPServer((config.host, config.port), self)
 

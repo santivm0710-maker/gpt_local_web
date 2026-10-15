@@ -9,7 +9,8 @@ imágenes con modelos de Cloudflare Workers AI.
 | --- | --- |
 | Interfaz | HTML, CSS y JavaScript en `static/` |
 | Interfaz JavaScript | `ChatApp.js` coordina la aplicación; `ChatView.js` gestiona la interfaz; `ChatApi.js` realiza las solicitudes; `app.js` inicia la aplicación. |
-| Backend | Python en `backend/`, organizado en módulos para configuración, servicios, HTTP y coordinación. |
+| Backend | Python en `backend/`, organizado en módulos para configuración, servicios, HTTP, persistencia y coordinación. |
+| Base de datos | SQLite, incluida en Python; guarda conversaciones y mensajes en un archivo local. |
 | Chat | Ollama con el modelo `llama3.2:3b` |
 | Imágenes | Cloudflare Workers AI: FLUX.1 Schnell y DreamShaper 8 LCM |
 
@@ -51,6 +52,26 @@ lo expone al navegador. `.env` evita subir accidentalmente las credenciales, per
 cifra ni protege el equipo local. Las variables del entorno del sistema tienen prioridad
 sobre las definidas en `.env`.
 
+### Base de datos local
+
+La aplicación crea automáticamente el esquema SQLite al iniciar. En Windows, el archivo
+se guarda por defecto en `%LOCALAPPDATA%\ChatLocal\chat.sqlite3`, fuera de la carpeta del
+proyecto. En otros sistemas usa `$XDG_DATA_HOME/ChatLocal/chat.sqlite3` o
+`~/.local/share/ChatLocal/chat.sqlite3`.
+
+Para usar otra ubicación, configura opcionalmente `DATABASE_PATH` en `.env`; una ruta
+relativa se interpreta desde la carpeta raíz del proyecto:
+
+```env
+DATABASE_PATH=data/chat.sqlite3
+```
+
+El esquema está en `backend/schema.sql`; la conexión, el repositorio y la lógica de
+conversaciones están separados en `backend/database.py`,
+`backend/conversation_repository.py` y `backend/conversation_service.py`. No se requiere
+instalar una dependencia de base de datos adicional. La base es local y no está cifrada;
+no guardes allí información sensible. Los archivos SQLite están excluidos de Git.
+
 ## Instalación y ejecución
 
 Desde la carpeta raíz del proyecto, instala las dependencias:
@@ -70,12 +91,25 @@ presiona **Salir** en la interfaz o usa `Ctrl+C` en la terminal.
 
 ## Uso
 
-Escribe un mensaje y presiona **Enviar** para conversar con Ollama. Cada mensaje se envía
-de forma independiente; no se conserva el historial para el modelo.
+Escribe un mensaje y presiona **Enviar** para conversar con Ollama. Las conversaciones y
+sus mensajes se guardan localmente y aparecen en la lista **Conversación** para poder
+retomarlos. Ollama recibe los últimos 20 mensajes de la conversación como contexto.
+**Nueva conversación** inicia un chat separado. El límite del contexto se puede ajustar
+en `chat_history_limit` de `backend/app_config.py`.
 
 Para generar una imagen, selecciona **FLUX.1 Schnell** o **DreamShaper 8 LCM**, escribe una
 descripción y presiona **Crear imagen**. Las imágenes generadas se pueden descargar desde
-la conversación.
+la conversación. Por ahora, ni las imágenes ni sus solicitudes se guardan en la base de
+datos.
+
+La API de conversaciones es reutilizable desde otros clientes HTTP locales:
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| `GET` | `/api/conversaciones` | Lista conversaciones y cantidad de mensajes |
+| `POST` | `/api/conversaciones` | Crea una conversación |
+| `GET` | `/api/conversaciones/{id}` | Obtiene una conversación con sus mensajes |
+| `POST` | `/api/chat` | Envía `{ "conversationId": 1, "message": "Hola" }` y guarda el intercambio |
 
 Cloudflare ofrece una asignación gratuita diaria de Workers AI, sujeta a límites y cambios
 del proveedor. La cantidad de imágenes depende del consumo de cada modelo. Las descripciones
@@ -91,9 +125,13 @@ backend/
   app_config.py       Configuración y carga de variables de entorno
   application.py     Coordinación de la aplicación
   chat_service.py    Comunicación con Ollama
+  conversation_repository.py Consultas reutilizables de conversaciones y mensajes
+  conversation_service.py Reglas de aplicación para el historial y el chat
+  database.py        Conexiones SQLite y creación del esquema
   http_server.py     Servidor HTTP
-  image_service.py   Generación de imágenes con Cloudflare
+  image_service.py  Generación de imágenes con Cloudflare
   request_handler.py Rutas HTTP y API
+  schema.sql         Esquema inicial de SQLite
   server.py          Punto de entrada
 static/
   app.js
@@ -103,3 +141,25 @@ static/
   index.html
   style.css
 ```
+
+## Acceso directo en el escritorio (Windows)
+
+El archivo `Iniciar Chat Local.bat`, en la carpeta raíz del proyecto, inicia el servidor
+y abre la aplicación en el navegador. Para crear un icono en el escritorio:
+
+1. En el Explorador de archivos, abre la carpeta del proyecto.
+2. Haz clic derecho en `Iniciar Chat Local.bat` y selecciona **Mostrar más opciones**
+   > **Enviar a** > **Escritorio (crear acceso directo)**.
+3. Abre el acceso directo desde el escritorio para iniciar la aplicación. La ventana de
+   consola debe permanecer abierta mientras la app esté en uso; ciérrala para detenerla.
+
+Si Windows no reconoce el comando `python`, instala Python o ajusta el lanzador para usar
+el comando con el que lo inicias desde PowerShell.
+
+## Mejoras futuras
+
+- Empaquetar la aplicación como una app de escritorio con instalador e icono propio.
+- Renombrar, eliminar y exportar conversaciones guardadas.
+- Añadir opciones para configurar modelos, dirección del servidor y preferencias desde la interfaz.
+- Guardar las imágenes generadas y su historial localmente.
+- Incorporar generación de imágenes local para reducir la dependencia de servicios externos.

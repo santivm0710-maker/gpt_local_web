@@ -1,8 +1,11 @@
 import json
+import logging
+import sqlite3
 from http.server import BaseHTTPRequestHandler
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 
+from .conversation_service import ConversationNotFoundError
 from .image_service import CloudflareImageService
 
 
@@ -36,6 +39,23 @@ class ChatRequestHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/info":
             return self._json(200, self.app.get_info())
+        if path == "/api/conversaciones":
+            try:
+                return self._json(200, {"conversations": self.app.conversations.list()})
+            except sqlite3.Error:
+                logging.exception("No se pudo listar las conversaciones")
+                return self._json(500, {"error": "No se pudo acceder al historial"})
+        conversation_id = self._conversation_id_from_path(path)
+        if conversation_id is not None:
+            try:
+                conversation = self.app.conversations.get(conversation_id)
+            except sqlite3.Error:
+                logging.exception("No se pudo cargar la conversación %s", conversation_id)
+                return self._json(500, {"error": "No se pudo acceder a la conversación"})
+            return self._json(
+                200 if conversation else 404,
+                {"conversation": conversation} if conversation else {"error": "Conversación no encontrada"},
+            )
         static_file = self.app.serve_static_file(path)
         if static_file is None:
             return self._json(404, {"error": "No encontrado"})
@@ -52,23 +72,47 @@ class ChatRequestHandler(BaseHTTPRequestHandler):
             self.app.stop()
             return
 
+        if path == "/api/conversaciones":
+            try:
+                return self._json(201, {"conversation": self.app.conversations.create()})
+            except sqlite3.Error:
+                logging.exception("No se pudo crear una conversación")
+                return self._json(500, {"error": "No se pudo crear la conversación"})
+
         if path not in ("/api/chat", "/api/imagen"):
             return self._json(404, {"error": "No encontrado"})
-        data = self._read_request_data()
+        data = self._read_json_body()
         if data is None:
             return
-        message, image_model = data
-        if not message:
+        message = data.get("message")
+        if not isinstance(message, str) or not message.strip():
             return self._json(400, {"error": "Mensaje vacio"})
+        message = message.strip()
 
         if path == "/api/imagen":
-            return self._generate_image(message, image_model)
+            return self._generate_image(
+                message, data.get("model", CloudflareImageService.DEFAULT_MODEL)
+            )
+        conversation_id = data.get("conversationId")
+        if (
+            not isinstance(conversation_id, int)
+            or isinstance(conversation_id, bool)
+            or conversation_id <= 0
+        ):
+            return self._json(400, {"error": "Identificador de conversación inválido"})
         try:
-            self._json(200, {"reply": self.app.chat_service.ask(message)})
+            reply = self.app.conversations.send_message(conversation_id, message)
+            return self._json(200, {"reply": reply})
+        except ConversationNotFoundError:
+            return self._json(404, {"error": "Conversación no encontrada"})
+        except sqlite3.Error:
+            logging.exception("No se pudo guardar el mensaje de la conversación")
+            return self._json(500, {"error": "No se pudo guardar el mensaje"})
         except Exception as e:  # igual que el messagebox.showerror del original
-            self._json(502, {"error": str(e)})
+            logging.exception("No se pudo completar la solicitud de chat")
+            return self._json(502, {"error": str(e)})
 
-    def _read_request_data(self) -> tuple[str, str] | None:
+    def _read_json_body(self) -> dict | None:
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -78,12 +122,27 @@ class ChatRequestHandler(BaseHTTPRequestHandler):
             return None
         try:
             data = json.loads(self.rfile.read(length).decode("utf-8"))
-            message = str(data.get("message", "")).strip()
-            image_model = data.get("model", CloudflareImageService.DEFAULT_MODEL)
-        except (ValueError, AttributeError):
+        except ValueError:
             self._json(400, {"error": "JSON invalido"})
             return None
-        return message, image_model
+        if not isinstance(data, dict):
+            self._json(400, {"error": "El cuerpo debe ser un objeto JSON"})
+            return None
+        return data
+
+    @staticmethod
+    def _conversation_id_from_path(path: str) -> int | None:
+        prefix = "/api/conversaciones/"
+        if not path.startswith(prefix):
+            return None
+        value = path[len(prefix):]
+        if not value or "/" in value:
+            return None
+        try:
+            conversation_id = int(value)
+        except ValueError:
+            return None
+        return conversation_id if conversation_id > 0 else None
 
     def _generate_image(self, prompt: str, model: str):
         if len(prompt) > self.app.config.max_image_prompt:

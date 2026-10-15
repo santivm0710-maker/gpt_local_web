@@ -5,9 +5,12 @@ class OllamaChatService:
     def __init__(self, model: str):
         self.model = model
 
-    def ask(self, message: str) -> str:
+    def ask(self, message: str, history: list[dict[str, str]] | None = None) -> str:
         response = ollama.chat(
             model=self.model,
-            messages=[{"role": "user", "content": message}],
+            messages=[
+                *(history or []),
+                {"role": "user", "content": message},
+            ],
         )
         return response["message"]["content"]
