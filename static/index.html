@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat Local - Ollama</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>Chat Local <span class="muted">Ollama</span></h1>
+      <span class="model" id="model" title="Modelo en uso">...</span>
+    </header>
+
+    <section id="chat" class="chat" aria-live="polite" aria-label="Conversación"></section>
+
+    <div id="error" class="error" role="alert" hidden></div>
+
+    <form id="form" class="composer" autocomplete="off">
+      <input id="input" type="text" placeholder="Escribí un mensaje y presioná Enter" aria-label="Mensaje" autofocus>
+      <button id="send" type="submit" class="btn primary">Enviar</button>
+      <label class="model-picker">
+        Modelo de imagen
+        <select id="image-model" aria-label="Modelo de imagen"></select>
+      </label>
+      <button id="image" type="button" class="btn">Crear imagen</button>
+      <button id="clear" type="button" class="btn">Limpiar</button>
+      <button id="exit" type="button" class="btn danger">Salir</button>
+    </form>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
