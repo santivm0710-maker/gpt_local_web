@@ -7,8 +7,13 @@ from .app_config import AppConfig
 
 
 class CloudflareImageService:
-    DEFAULT_MODEL = "@cf/black-forest-labs/flux-1-schnell"
+    DEFAULT_MODEL = "@cf/leonardo/phoenix-1.0"
     MODELS = {
+        "@cf/leonardo/phoenix-1.0": {
+            "name": "Leonardo Phoenix 1.0",
+            "description": "Más fidelidad al prompt y mejor texto",
+            "parameters": {"width": 1024, "height": 1024, "num_steps": 25},
+        },
         "@cf/black-forest-labs/flux-1-schnell": {
             "name": "FLUX.1 Schnell",
             "description": "Rápido y equilibrado",

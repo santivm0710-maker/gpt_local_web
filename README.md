@@ -12,7 +12,7 @@ imágenes con modelos de Cloudflare Workers AI.
 | Backend | Python en `backend/`, organizado en módulos para configuración, servicios, HTTP, persistencia y coordinación. |
 | Base de datos | SQLite, incluida en Python; guarda conversaciones y mensajes en un archivo local. |
 | Chat | Ollama con el modelo `llama3.2:3b` |
-| Imágenes | Cloudflare Workers AI: FLUX.1 Schnell y DreamShaper 8 LCM |
+| Imágenes | Cloudflare Workers AI: Leonardo Phoenix 1.0, FLUX.1 Schnell y DreamShaper 8 LCM |
 
 ## Requisitos
 
@@ -97,8 +97,11 @@ retomarlos. Ollama recibe los últimos 20 mensajes de la conversación como cont
 **Nueva conversación** inicia un chat separado. El límite del contexto se puede ajustar
 en `chat_history_limit` de `backend/app_config.py`.
 
-Para generar una imagen, selecciona **FLUX.1 Schnell** o **DreamShaper 8 LCM**, escribe una
-descripción y presiona **Crear imagen**. Las imágenes generadas se pueden descargar desde
+Para generar una imagen, selecciona **Leonardo Phoenix 1.0**, **FLUX.1 Schnell** o
+**DreamShaper 8 LCM**, escribe una
+descripción y presiona **Crear imagen**. Phoenix ofrece mejor fidelidad al prompt y
+renderizado de texto; es el modelo predeterminado. Los otros modelos siguen disponibles si
+prefieres velocidad o un estilo diferente. Las imágenes generadas se pueden descargar desde
 la conversación. Por ahora, ni las imágenes ni sus solicitudes se guardan en la base de
 datos.
 
@@ -111,12 +114,19 @@ La API de conversaciones es reutilizable desde otros clientes HTTP locales:
 | `GET` | `/api/conversaciones/{id}` | Obtiene una conversación con sus mensajes |
 | `POST` | `/api/chat` | Envía `{ "conversationId": 1, "message": "Hola" }` y guarda el intercambio |
 
-Cloudflare ofrece una asignación gratuita diaria de Workers AI, sujeta a límites y cambios
-del proveedor. La cantidad de imágenes depende del consumo de cada modelo. Las descripciones
-se envían a Cloudflare para generar las imágenes; no incluyas información sensible.
+Cloudflare ofrece 10.000 Neurons gratuitas al día en Workers Free; la cuota se comparte
+entre todos los modelos de Workers AI y puede cambiar. Una imagen Phoenix de 1024 × 1024
+con 25 pasos consume aproximadamente 2.370 Neurons, así que la cuota alcanza para unas
+cuatro imágenes diarias si no usas otros modelos. Al agotarse, las solicitudes fallan en
+Workers Free. En un plan Workers Paid, el uso que supere la cuota gratuita puede generar
+cargos. Revisa el uso y el plan en Cloudflare si quieres mantener el costo en cero. Las
+descripciones se envían a Cloudflare; no incluyas información sensible. Consulta la
+[ficha de Phoenix 1.0](https://developers.cloudflare.com/workers-ai/models/phoenix-1.0/)
+y los [precios actuales de Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/).
 
-La lista de modelos se valida en el servidor. Para cambiar el modelo de chat, modifica el
-valor `chat_model` en `backend/app_config.py`.
+La lista de modelos se valida en el servidor. Para cambiar el modelo de imagen
+predeterminado, modifica `DEFAULT_MODEL` en `backend/image_service.py`. Para cambiar el
+modelo de chat, modifica el valor `chat_model` en `backend/app_config.py`.
 
 ## Estructura
 
